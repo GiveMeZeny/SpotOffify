@@ -1,7 +1,7 @@
 SpotOffify
 ==========
 
-A small Spotify hook for windows that mutes the ads (as I got used to the name I stole it from [buFFy!'s _SpotOffify_](http://www.elitepvpers.com/forum/coding-releases/2728234-spotoffify-silence-all-them-adz.html) which does the same thing but is outdated by now, I hope it's k).
+A small ad-blocker for Spotify on Windows that simply mutes the ads by reading and hooking some internal variable and function (I've used [buFFy!'s _SpotOffify_](http://www.elitepvpers.com/forum/coding-releases/2728234-spotoffify-silence-all-them-adz.html) before, which does the same thing but is outdated by now, and as I got used to the name I stole it, I hope it's k).
 
 ## Installation
 

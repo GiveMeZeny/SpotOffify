@@ -537,3 +537,107 @@ proc remove_page_guard address
 	pop	ebx
 	ret
 endp
+
+; --[ GUI-related ]
+
+macro setcenter hwnd,parent,mode=0
+ { if mode>0
+    push SM_CYCAPTION
+    call [GetSystemMetrics]
+    push eax
+   end if
+   push hwnd
+   push parent
+   call calc_mid
+   if mode>0
+    pop ecx
+    if mode=1
+     shr ecx,1
+    else
+     shr ecx,2
+    end if
+    add edx,ecx
+   end if
+   push SWP_NOSIZE+SWP_NOZORDER+SWP_NOACTIVATE
+   push 0
+   push 0
+   push edx
+   push eax
+   push 0
+   push hwnd
+   call [SetWindowPos] }
+
+proc calc_mid parent,child
+  local rect1:RECT,rect2:RECT
+	push	ebx esi edi
+	lea	esi,[rect1]
+	lea	edi,[rect2]
+	push	esi
+	push	[parent]
+	call	[GetWindowRect]
+	push	edi
+	push	[child]
+	call	[GetWindowRect]
+	mov	eax,[esi+RECT.right]
+	mov	edx,[esi+RECT.bottom]
+	sub	eax,[esi+RECT.left]
+	sub	edx,[esi+RECT.top]
+	shr	eax,1
+	shr	edx,1
+	mov	ebx,[edi+RECT.right]
+	mov	ecx,[edi+RECT.bottom]
+	sub	ebx,[edi+RECT.left]
+	sub	ecx,[edi+RECT.top]
+	shr	ebx,1
+	shr	ecx,1
+	sub	eax,ebx
+	sub	edx,ecx
+	add	eax,[esi+RECT.left]
+	add	edx,[esi+RECT.top]
+	pop	edi esi ebx
+	ret
+endp
+
+proc CBTMsgBoxHook code,wparam,lparam
+	cmp	[code],HCBT_ACTIVATE
+	jnz	.fin
+	push	[wparam]
+	call	[GetParent]
+	test	eax,eax
+	cmove	eax,[cbtmsgboxhwnd]
+	test	eax,eax
+	je	.err
+	setcenter [wparam],eax
+    .err:
+	push	[cbtmsgboxhook]
+	call	[UnhookWindowsHookEx]
+    .fin:
+	xor	eax,eax
+	ret
+endp
+
+proc MMessageBoxW hwnd,text,caption,type,phwnd
+	mov	eax,[phwnd]
+	mov	[cbtmsgboxhwnd],eax
+	call	[GetCurrentThreadId]
+	push	eax
+	push	0
+	push	CBTMsgBoxHook
+	push	WH_CBT
+	call	[SetWindowsHookExW]
+	mov	[cbtmsgboxhook],eax
+	push	[type]
+	push	[caption]
+	push	[text]
+	push	[hwnd]
+	call	[MessageBoxW]
+	ret
+endp
+
+macro misc_udata
+ {
+   if used cbtmsgboxhook | used cbtmsgboxhwnd
+    cbtmsgboxhook rd 1
+    cbtmsgboxhwnd rd 1
+   end if
+ }

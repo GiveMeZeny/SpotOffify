@@ -29,7 +29,7 @@ endp
 proc hook_spotify hmodule
 	push	ebx esi
 	push	_execname
-	call	[GetModuleHandle]
+	call	[GetModuleHandleW]
 	mov	esi,eax
 	push	eax
 	call	get_image_size
@@ -68,11 +68,9 @@ proc hook_spotify hmodule
 	call	[Sleep]
 	jmp	.wait
     .done:
-	push	MB_OK
 	push	_information
 	push	_initialized
-	push	0
-	call	[MessageBox]
+	call	showmes
     .fin:
 	pop	esi ebx
 	ret
@@ -82,11 +80,9 @@ proc hook_spotify hmodule
 	call	remove_page_guard
 	push	[spotify_loop]
 	call	remove_page_guard
-	push	MB_OK
 	push	_title
 	push	_fail
-	push	0
-	call	[MessageBox]
+	call	showmes
 	push	[handler]
 	call	[RemoveVectoredExceptionHandler]
 	push	0
@@ -133,7 +129,7 @@ proc exception_handler ExceptionInfo
 	ret
 
     .hook_play:
-	mov	ebx,30
+	mov	ebx,20
 	lea	edx,[f32s]
 	mov	ecx,[edi+CONTEXT.Eip]
       .look_for_mov:
@@ -146,7 +142,7 @@ proc exception_handler ExceptionInfo
 	cmp	[edx+fde32s.modrm.reg],REG_EAX
 	jnz	.look_for_mov
 	movzx	eax,[edx+fde32s.modrm.rm]
-	mov	ebx,reg_map
+	mov	ebx,_reg2ctx_map
 	xlatb
 	mov	eax,[edi+eax]
 	add	eax,[edx+fde32s.disp32]
@@ -187,12 +183,25 @@ proc exception_handler ExceptionInfo
 	mov	ecx,[edi+CONTEXT.Eip]
 	call	decode
 	movzx	eax,[edx+fde32s.modrm.rm]
-	mov	ebx,reg_map
+	mov	ebx,_reg2ctx_map
 	xlatb
 	mov	eax,[edi+eax]
 	add	eax,[edx+fde32s.disp32]
 	mov	[volume],eax
 	jmp	.is_ad_playing
+endp
+
+proc showmes text,title
+	push	NULL
+	push	_wndclass
+	call	[FindWindowW]
+	push	eax
+	push	MB_OK
+	push	[title]
+	push	[text]
+	push	NULL
+	call	MMessageBoxW
+	ret
 endp
 
 section '.data' data readable writeable
@@ -202,24 +211,25 @@ section '.data' data readable writeable
   _information du 'Information',0
   _initialized du 'SpotOffify initialized',0
   _fail du 'Couldn''t find addresses',0
+  _wndclass du 'SpotifyMainWindow',0
   _ptrn_play db 033h,0C0h      ; xor eax,eax
 	     db 084h,0D2h      ; test dl,dl
 	     db 00Fh,095h,0C0h ; setnz al
 	     db 083h,0C0h,006h ; add eax,6
   _size_play = $-_ptrn_play
-  _ptrn_volume db 0F3h,00Fh,010h,08Eh,000h,000h,000h,000h ; movss xmm1,[esi+xx]
-	       db 0F3h,00Fh,010h,086h,000h,000h,000h,000h ; movss xmm0,[esi+xx]
-	       db 00Fh,02Eh,0C1h			  ; ucomiss xmm0,xmm1
-  _mask_volume db 'xxxx????xxxx????xxx'
+  _ptrn_volume db 0F3h,00Fh,010h,000h,000h,000h,000h,000h ; movss xmm?,[???+??]
+	       db 0F3h,00Fh,010h,000h,000h,000h,000h,000h ; movss xmm?,[???+??]
+	       db 00Fh,02Eh				  ; ucomiss xmm?,xmm?
+  _mask_volume db 'xxx?????xxx?????xx'
   _size_volume = $-_mask_volume
-  reg_map db CONTEXT.Eax
-	  db CONTEXT.Ecx
-	  db CONTEXT.Edx
-	  db CONTEXT.Ebx
-	  db CONTEXT.Esp
-	  db CONTEXT.Ebp
-	  db CONTEXT.Esi
-	  db CONTEXT.Edi
+  _reg2ctx_map db CONTEXT.Eax
+	       db CONTEXT.Ecx
+	       db CONTEXT.Edx
+	       db CONTEXT.Ebx
+	       db CONTEXT.Esp
+	       db CONTEXT.Ebp
+	       db CONTEXT.Esi
+	       db CONTEXT.Edi
 
   shutdown rd 1
   handler rd 1
@@ -228,6 +238,7 @@ section '.data' data readable writeable
   is_ad_playing rd 1
   volume rd 1
   old_volume rd 1
+  misc_udata
 
 section '.idata' import data readable
 
@@ -240,7 +251,7 @@ section '.idata' import data readable
 		  DisableThreadLibraryCalls,'DisableThreadLibraryCalls',\
 		  FreeLibraryAndExitThread,'FreeLibraryAndExitThread',\
 		  GetCurrentThreadId,'GetCurrentThreadId',\
-		  GetModuleHandle,'GetModuleHandleW',\
+		  GetModuleHandleW,'GetModuleHandleW',\
 		  GetThreadContext,'GetThreadContext',\
 		  OpenThread,'OpenThread',\
 		  RemoveVectoredExceptionHandler,'RemoveVectoredExceptionHandler',\
@@ -251,6 +262,12 @@ section '.idata' import data readable
 		  VirtualProtect,'VirtualProtect',\
 		  VirtualQuery,'VirtualQuery'
 
-  import user32,MessageBox,'MessageBoxW'
+  import user32,FindWindowW,'FindWindowW',\
+		GetParent,'GetParent',\
+		GetWindowRect,'GetWindowRect',\
+		MessageBoxW,'MessageBoxW',\
+		SetWindowPos,'SetWindowPos',\
+		SetWindowsHookExW,'SetWindowsHookExW',\
+		UnhookWindowsHookEx,'UnhookWindowsHookEx'
 
 section '.reloc' fixups data discardable
