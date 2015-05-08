@@ -1,5 +1,4 @@
-
-;                                                                                                                              Nov 2012
+;															       Nov 2012
 ; un[f]ancy [d]isassembler [e]ngine (fde32) v0.01
 ;
 

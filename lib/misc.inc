@@ -1,4 +1,3 @@
-
 ; --[ memory-related ]
 
 struct MEMORY_BASIC_INFORMATION
