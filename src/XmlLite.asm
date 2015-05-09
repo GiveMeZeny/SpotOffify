@@ -244,29 +244,31 @@ section '.idata' import data readable
   library kernel32,'KERNEL32.DLL',\
 	  user32,'USER32.DLL'
 
-  import kernel32,AddVectoredExceptionHandler,'AddVectoredExceptionHandler',\
-		  CloseHandle,'CloseHandle',\
-		  CreateThread,'CreateThread',\
-		  DisableThreadLibraryCalls,'DisableThreadLibraryCalls',\
-		  FreeLibraryAndExitThread,'FreeLibraryAndExitThread',\
-		  GetCurrentThreadId,'GetCurrentThreadId',\
-		  GetModuleHandleW,'GetModuleHandleW',\
-		  GetThreadContext,'GetThreadContext',\
-		  OpenThread,'OpenThread',\
-		  RemoveVectoredExceptionHandler,'RemoveVectoredExceptionHandler',\
-		  ResumeThread,'ResumeThread',\
-		  SetThreadContext,'SetThreadContext',\
-		  Sleep,'Sleep',\
-		  SuspendThread,'SuspendThread',\
-		  VirtualProtect,'VirtualProtect',\
-		  VirtualQuery,'VirtualQuery'
+  import kernel32,\
+	 AddVectoredExceptionHandler,'AddVectoredExceptionHandler',\
+	 CloseHandle,'CloseHandle',\
+	 CreateThread,'CreateThread',\
+	 DisableThreadLibraryCalls,'DisableThreadLibraryCalls',\
+	 FreeLibraryAndExitThread,'FreeLibraryAndExitThread',\
+	 GetCurrentThreadId,'GetCurrentThreadId',\
+	 GetModuleHandleW,'GetModuleHandleW',\
+	 GetThreadContext,'GetThreadContext',\
+	 OpenThread,'OpenThread',\
+	 RemoveVectoredExceptionHandler,'RemoveVectoredExceptionHandler',\
+	 ResumeThread,'ResumeThread',\
+	 SetThreadContext,'SetThreadContext',\
+	 Sleep,'Sleep',\
+	 SuspendThread,'SuspendThread',\
+	 VirtualProtect,'VirtualProtect',\
+	 VirtualQuery,'VirtualQuery'
 
-  import user32,FindWindowW,'FindWindowW',\
-		GetParent,'GetParent',\
-		GetWindowRect,'GetWindowRect',\
-		MessageBoxW,'MessageBoxW',\
-		SetWindowPos,'SetWindowPos',\
-		SetWindowsHookExW,'SetWindowsHookExW',\
-		UnhookWindowsHookEx,'UnhookWindowsHookEx'
+  import user32,\
+	 FindWindowW,'FindWindowW',\
+	 GetParent,'GetParent',\
+	 GetWindowRect,'GetWindowRect',\
+	 MessageBoxW,'MessageBoxW',\
+	 SetWindowPos,'SetWindowPos',\
+	 SetWindowsHookExW,'SetWindowsHookExW',\
+	 UnhookWindowsHookEx,'UnhookWindowsHookEx'
 
 section '.reloc' fixups data discardable
