@@ -45,25 +45,14 @@ proc hook_spotify hmodule
 	test	eax,eax
 	je	.exit
 	mov	[spotify_play],eax
-	push	_size_volume
-	push	_mask_volume
-	push	_ptrn_volume
-	push	ebx
-	push	esi
-	call	find_pattern
-	test	eax,eax
-	je	.exit
-	mov	[spotify_loop],eax
 	push	eax
 	call	apply_page_guard
-	push	[spotify_play]
-	call	apply_page_guard
     .wait:
-	cmp	[is_ad_playing],0
+	cmp	[is_ad_playing_ptr],0
 	jnz	.done
 	cmp	[shutdown],1
 	je	.exit
-	push	100
+	push	200
 	call	[Sleep]
 	jmp	.wait
     .done:
@@ -76,8 +65,6 @@ proc hook_spotify hmodule
 
     .exit:
 	push	[spotify_play]
-	call	remove_page_guard
-	push	[spotify_loop]
 	call	remove_page_guard
 	push	_title
 	push	_fail
@@ -107,18 +94,12 @@ proc exception_handler ExceptionInfo
 	mov	eax,[esi+EXCEPTION_RECORD.ExceptionInformation+4]
 	cmp	eax,[spotify_play]
 	je	.hook_play
-	cmp	eax,[spotify_loop]
-	je	.hook_loop
 	jmp	.done
     .single_step:
 	movzx	eax,word [edi+CONTEXT.Dr6]
 	and	[edi+CONTEXT.Dr6],0
 	test	eax,0fh
 	jnz	.ignore
-	push	[spotify_loop]
-	call	apply_page_guard
-	cmp	[is_ad_playing],0
-	jnz	.done
 	push	[spotify_play]
 	call	apply_page_guard
     .done:
@@ -128,6 +109,28 @@ proc exception_handler ExceptionInfo
 	ret
 
     .hook_play:
+	cmp	[is_ad_playing_ptr],0
+	je	.get_is_ad_playing_ptr
+      .is_ad_playing:
+	mov	eax,[is_ad_playing_ptr]
+	cmp	byte [eax],1
+	je	.ad_is_playing
+	cmp	[old_volume],0
+	je	.done
+	push	[old_volume]
+	push	0
+	call	[waveOutSetVolume]
+	and	[old_volume],0
+	jmp	.done
+      .ad_is_playing:
+	push	old_volume
+	push	0
+	call	[waveOutGetVolume]
+	push	0
+	push	0
+	call	[waveOutSetVolume]
+	jmp	.done
+      .get_is_ad_playing_ptr:
 	mov	ebx,20
 	lea	edx,[f32s]
 	mov	ecx,[edi+CONTEXT.Eip]
@@ -145,49 +148,11 @@ proc exception_handler ExceptionInfo
 	xlatb
 	mov	eax,[edi+eax]
 	add	eax,[edx+fde32s.disp32]
-	mov	[is_ad_playing],eax
+	mov	[is_ad_playing_ptr],eax
 	jmp	.done
       .err:
 	or	[shutdown],1
 	jmp	.done
-
-    .hook_loop:
-	cmp	[is_ad_playing],0
-	je	.done
-	cmp	[volume],0
-	je	.get_volume_ptr
-	mov	ebx,[volume]
-      .is_ad_playing:
-	mov	eax,[is_ad_playing]
-	cmp	byte [eax],1
-	je	.ad_is_playing
-	cmp	[old_volume],0
-	je	.done
-	mov	eax,[old_volume]
-	mov	[ebx],eax
-	and	[old_volume],0
-	jmp	.done
-      .ad_is_playing:
-	cmp	[old_volume],0
-	jnz	.mute_ad
-	mov	eax,[ebx]
-	mov	[old_volume],eax
-      .mute_ad:
-	cmp	dword [ebx],0
-	je	.done
-	and	dword [ebx],0
-	jmp	.done
-      .get_volume_ptr:
-	lea	edx,[f32s]
-	mov	ecx,[edi+CONTEXT.Eip]
-	call	decode
-	movzx	eax,[edx+fde32s.modrm.rm]
-	mov	ebx,_reg2ctx_map
-	xlatb
-	mov	eax,[edi+eax]
-	add	eax,[edx+fde32s.disp32]
-	mov	[volume],eax
-	jmp	.is_ad_playing
 endp
 
 proc showmes text,title
@@ -211,16 +176,13 @@ section '.data' data readable writeable
   _initialized du 'SpotOffify initialized',0
   _fail du 'Couldn''t find addresses',0
   _wndclass du 'SpotifyMainWindow',0
+
   _ptrn_play db 033h,0C0h      ; xor eax,eax
 	     db 084h,0D2h      ; test dl,dl
 	     db 00Fh,095h,0C0h ; setnz al
 	     db 083h,0C0h,006h ; add eax,6
   _size_play = $-_ptrn_play
-  _ptrn_volume db 0F3h,00Fh,010h,000h,000h,000h,000h,000h ; movss xmm?,[???+??]
-	       db 0F3h,00Fh,010h,000h,000h,000h,000h,000h ; movss xmm?,[???+??]
-	       db 00Fh,02Eh				  ; ucomiss xmm?,xmm?
-  _mask_volume db 'xxx?????xxx?????xx'
-  _size_volume = $-_mask_volume
+
   _reg2ctx_map db CONTEXT.Eax
 	       db CONTEXT.Ecx
 	       db CONTEXT.Edx
@@ -233,16 +195,15 @@ section '.data' data readable writeable
   shutdown rd 1
   handler rd 1
   spotify_play rd 1
-  spotify_loop rd 1
-  is_ad_playing rd 1
-  volume rd 1
+  is_ad_playing_ptr rd 1
   old_volume rd 1
   misc_udata
 
 section '.idata' import data readable
 
   library kernel32,'KERNEL32.DLL',\
-	  user32,'USER32.DLL'
+	  user32,'USER32.DLL',\
+	  winmm,'WINMM.DLL'
 
   import kernel32,\
 	 AddVectoredExceptionHandler,'AddVectoredExceptionHandler',\
@@ -270,5 +231,10 @@ section '.idata' import data readable
 	 SetWindowPos,'SetWindowPos',\
 	 SetWindowsHookExW,'SetWindowsHookExW',\
 	 UnhookWindowsHookEx,'UnhookWindowsHookEx'
+
+  import winmm,\
+	 waveOutGetVolume,'waveOutGetVolume',\
+	 waveOutSetVolume,'waveOutSetVolume'
+
 
 section '.reloc' fixups data discardable
