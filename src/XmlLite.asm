@@ -123,6 +123,8 @@ proc exception_handler ExceptionInfo
 	and	[old_volume],0
 	jmp	.done
       .ad_is_playing:
+	cmp	[old_volume],0
+	jnz	.done
 	push	old_volume
 	push	0
 	call	[waveOutGetVolume]
